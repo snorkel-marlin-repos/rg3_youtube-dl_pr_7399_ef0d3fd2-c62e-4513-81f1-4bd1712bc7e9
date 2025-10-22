@@ -6,12 +6,14 @@ import json
 import re
 
 from .common import InfoExtractor
-from ..compat import compat_urlparse
+from ..compat import (
+    compat_urllib_request,
+    compat_urlparse,
+)
 from ..utils import (
     int_or_none,
     js_to_json,
     mimetype2ext,
-    sanitized_Request,
     unified_strdate,
 )
 
@@ -35,7 +37,7 @@ class SandiaIE(InfoExtractor):
     def _real_extract(self, url):
         video_id = self._match_id(url)
 
-        req = sanitized_Request(url)
+        req = compat_urllib_request.Request(url)
         req.add_header('Cookie', 'MediasitePlayerCaps=ClientPlugins=4')
         webpage = self._download_webpage(req, video_id)
 

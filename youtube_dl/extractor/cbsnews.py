@@ -67,12 +67,9 @@ class CBSNewsIE(InfoExtractor):
                 'format_id': format_id,
             }
             if uri.startswith('rtmp'):
-                play_path = re.sub(
-                    r'{slistFilePath}', '',
-                    uri.split('<break>')[-1].split('{break}')[-1])
                 fmt.update({
                     'app': 'ondemand?auth=cbs',
-                    'play_path': 'mp4:' + play_path,
+                    'play_path': 'mp4:' + uri.split('<break>')[-1],
                     'player_url': 'http://www.cbsnews.com/[[IMPORT]]/vidtech.cbsinteractive.com/player/3_3_0/CBSI_PLAYER_HD.swf',
                     'page_url': 'http://www.cbsnews.com',
                     'ext': 'flv',

@@ -4,7 +4,9 @@ from .common import InfoExtractor
 from ..utils import (
     float_or_none,
     int_or_none,
-    sanitized_Request,
+)
+from ..compat import (
+    compat_urllib_request
 )
 
 
@@ -63,7 +65,7 @@ class ViddlerIE(InfoExtractor):
             'http://api.viddler.com/api/v2/viddler.videos.getPlaybackDetails.json?video_id=%s&key=v0vhrt7bg2xq1vyxhkct' %
             video_id)
         headers = {'Referer': 'http://static.cdn-ec.viddler.com/js/arpeggio/v2/embed.html'}
-        request = sanitized_Request(json_url, None, headers)
+        request = compat_urllib_request.Request(json_url, None, headers)
         data = self._download_json(request, video_id)['video']
 
         formats = []

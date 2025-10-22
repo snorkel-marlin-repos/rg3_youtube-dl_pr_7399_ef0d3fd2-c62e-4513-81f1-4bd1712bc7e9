@@ -4,10 +4,12 @@ from __future__ import unicode_literals
 import re
 
 from .common import InfoExtractor
-from ..compat import compat_urllib_parse
+from ..compat import (
+    compat_urllib_parse,
+    compat_urllib_request,
+)
 from ..utils import (
     parse_duration,
-    sanitized_Request,
 )
 
 
@@ -48,7 +50,7 @@ class ShareSixIE(InfoExtractor):
             'method_free': 'Free'
         }
         post = compat_urllib_parse.urlencode(fields)
-        req = sanitized_Request(url, post)
+        req = compat_urllib_request.Request(url, post)
         req.add_header('Content-type', 'application/x-www-form-urlencoded')
 
         webpage = self._download_webpage(req, video_id,

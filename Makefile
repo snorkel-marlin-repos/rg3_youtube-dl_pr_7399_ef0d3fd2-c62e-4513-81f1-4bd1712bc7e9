@@ -61,34 +61,34 @@ youtube-dl: youtube_dl/*.py youtube_dl/*/*.py
 	chmod a+x youtube-dl
 
 README.md: youtube_dl/*.py youtube_dl/*/*.py
-	COLUMNS=80 $(PYTHON) youtube_dl/__main__.py --help | $(PYTHON) devscripts/make_readme.py
+	COLUMNS=80 python youtube_dl/__main__.py --help | python devscripts/make_readme.py
 
 CONTRIBUTING.md: README.md
-	$(PYTHON) devscripts/make_contributing.py README.md CONTRIBUTING.md
+	python devscripts/make_contributing.py README.md CONTRIBUTING.md
 
 supportedsites:
-	$(PYTHON) devscripts/make_supportedsites.py docs/supportedsites.md
+	python devscripts/make_supportedsites.py docs/supportedsites.md
 
 README.txt: README.md
 	pandoc -f markdown -t plain README.md -o README.txt
 
 youtube-dl.1: README.md
-	$(PYTHON) devscripts/prepare_manpage.py >youtube-dl.1.temp.md
+	python devscripts/prepare_manpage.py >youtube-dl.1.temp.md
 	pandoc -s -f markdown -t man youtube-dl.1.temp.md -o youtube-dl.1
 	rm -f youtube-dl.1.temp.md
 
 youtube-dl.bash-completion: youtube_dl/*.py youtube_dl/*/*.py devscripts/bash-completion.in
-	$(PYTHON) devscripts/bash-completion.py
+	python devscripts/bash-completion.py
 
 bash-completion: youtube-dl.bash-completion
 
 youtube-dl.zsh: youtube_dl/*.py youtube_dl/*/*.py devscripts/zsh-completion.in
-	$(PYTHON) devscripts/zsh-completion.py
+	python devscripts/zsh-completion.py
 
 zsh-completion: youtube-dl.zsh
 
 youtube-dl.fish: youtube_dl/*.py youtube_dl/*/*.py devscripts/fish-completion.in
-	$(PYTHON) devscripts/fish-completion.py
+	python devscripts/fish-completion.py
 
 fish-completion: youtube-dl.fish
 

@@ -2,11 +2,13 @@
 from __future__ import unicode_literals
 
 from .common import InfoExtractor
-from ..compat import compat_urllib_parse
+from ..compat import (
+    compat_urllib_parse,
+    compat_urllib_request,
+)
 from ..utils import (
     int_or_none,
     parse_iso8601,
-    sanitized_Request,
 )
 
 
@@ -34,7 +36,7 @@ class DCNIE(InfoExtractor):
     def _real_extract(self, url):
         video_id = self._match_id(url)
 
-        request = sanitized_Request(
+        request = compat_urllib_request.Request(
             'http://admin.mangomolo.com/analytics/index.php/plus/video?id=%s' % video_id,
             headers={'Origin': 'http://www.dcndigital.ae'})
 

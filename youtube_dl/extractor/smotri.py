@@ -7,11 +7,13 @@ import hashlib
 import uuid
 
 from .common import InfoExtractor
-from ..compat import compat_urllib_parse
+from ..compat import (
+    compat_urllib_parse,
+    compat_urllib_request,
+)
 from ..utils import (
     ExtractorError,
     int_or_none,
-    sanitized_Request,
     unified_strdate,
 )
 
@@ -174,7 +176,7 @@ class SmotriIE(InfoExtractor):
         if video_password:
             video_form['pass'] = hashlib.md5(video_password.encode('utf-8')).hexdigest()
 
-        request = sanitized_Request(
+        request = compat_urllib_request.Request(
             'http://smotri.com/video/view/url/bot/', compat_urllib_parse.urlencode(video_form))
         request.add_header('Content-Type', 'application/x-www-form-urlencoded')
 
@@ -337,7 +339,7 @@ class SmotriBroadcastIE(InfoExtractor):
                 'password': password,
             }
 
-            request = sanitized_Request(
+            request = compat_urllib_request.Request(
                 broadcast_url + '/?no_redirect=1', compat_urllib_parse.urlencode(login_form))
             request.add_header('Content-Type', 'application/x-www-form-urlencoded')
             broadcast_page = self._download_webpage(

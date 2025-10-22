@@ -22,13 +22,12 @@ from ..compat import (
 class BBCCoUkIE(InfoExtractor):
     IE_NAME = 'bbc.co.uk'
     IE_DESC = 'BBC iPlayer'
-    _ID_REGEX = r'[pb][\da-z]{7}'
-    _VALID_URL = r'https?://(?:www\.)?bbc\.co\.uk/(?:(?:programmes/(?!articles/)|iplayer(?:/[^/]+)?/(?:episode/|playlist/))|music/clips[/#])(?P<id>%s)' % _ID_REGEX
+    _VALID_URL = r'https?://(?:www\.)?bbc\.co\.uk/(?:(?:programmes/(?!articles/)|iplayer(?:/[^/]+)?/(?:episode/|playlist/))|music/clips[/#])(?P<id>[\da-z]{8})'
 
     _MEDIASELECTOR_URLS = [
         # Provides HQ HLS streams with even better quality that pc mediaset but fails
         # with geolocation in some cases when it's even not geo restricted at all (e.g.
-        # http://www.bbc.co.uk/programmes/b06bp7lf). Also may fail with selectionunavailable.
+        # http://www.bbc.co.uk/programmes/b06bp7lf)
         'http://open.live.bbc.co.uk/mediaselector/5/select/version/2.0/mediaset/iptv-all/vpid/%s',
         'http://open.live.bbc.co.uk/mediaselector/5/select/version/2.0/mediaset/pc/vpid/%s',
     ]
@@ -47,8 +46,9 @@ class BBCCoUkIE(InfoExtractor):
             'info_dict': {
                 'id': 'b039d07m',
                 'ext': 'flv',
-                'title': 'Leonard Cohen, Kaleidoscope - BBC Radio 4',
+                'title': 'Kaleidoscope, Leonard Cohen',
                 'description': 'The Canadian poet and songwriter reflects on his musical career.',
+                'duration': 1740,
             },
             'params': {
                 # rtmp download
@@ -111,8 +111,7 @@ class BBCCoUkIE(InfoExtractor):
             'params': {
                 # rtmp download
                 'skip_download': True,
-            },
-            'skip': 'Episode is no longer available on BBC iPlayer Radio',
+            }
         }, {
             'url': 'http://www.bbc.co.uk/music/clips/p02frcc3',
             'note': 'Audio',
@@ -335,7 +334,7 @@ class BBCCoUkIE(InfoExtractor):
                 return self._download_media_selector_url(
                     mediaselector_url % programme_id, programme_id)
             except BBCCoUkIE.MediaSelectionError as e:
-                if e.id in ('notukerror', 'geolocation', 'selectionunavailable'):
+                if e.id in ('notukerror', 'geolocation'):
                     last_exception = e
                     continue
                 self._raise_extractor_error(e)
@@ -346,7 +345,7 @@ class BBCCoUkIE(InfoExtractor):
             media_selection = self._download_xml(
                 url, programme_id, 'Downloading media selection XML')
         except ExtractorError as ee:
-            if isinstance(ee.cause, compat_HTTPError) and ee.cause.code in (403, 404):
+            if isinstance(ee.cause, compat_HTTPError) and ee.cause.code == 403:
                 media_selection = compat_etree_fromstring(ee.cause.read().decode('utf-8'))
             else:
                 raise
@@ -454,7 +453,6 @@ class BBCCoUkIE(InfoExtractor):
         webpage = self._download_webpage(url, group_id, 'Downloading video page')
 
         programme_id = None
-        duration = None
 
         tviplayer = self._search_regex(
             r'mediator\.bind\(({.+?})\s*,\s*document\.getElementById',
@@ -467,16 +465,14 @@ class BBCCoUkIE(InfoExtractor):
 
         if not programme_id:
             programme_id = self._search_regex(
-                r'"vpid"\s*:\s*"(%s)"' % self._ID_REGEX, webpage, 'vpid', fatal=False, default=None)
+                r'"vpid"\s*:\s*"([\da-z]{8})"', webpage, 'vpid', fatal=False, default=None)
 
         if programme_id:
             formats, subtitles = self._download_media_selector(programme_id)
             title = self._og_search_title(webpage)
             description = self._search_regex(
                 r'<p class="[^"]*medium-description[^"]*">([^<]+)</p>',
-                webpage, 'description', default=None)
-            if not description:
-                description = self._html_search_meta('description', webpage)
+                webpage, 'description', fatal=False)
         else:
             programme_id, title, description, duration, formats, subtitles = self._download_playlist(group_id)
 
@@ -590,7 +586,6 @@ class BBCIE(BBCCoUkIE):
             'ext': 'mp4',
             'title': '''Judge Mindy Glazer: "I'm sorry to see you here... I always wondered what happened to you"''',
             'duration': 56,
-            'description': '''Judge Mindy Glazer: "I'm sorry to see you here... I always wondered what happened to you"''',
         },
         'params': {
             'skip_download': True,
@@ -785,9 +780,8 @@ class BBCIE(BBCCoUkIE):
 
         # single video story (e.g. http://www.bbc.com/travel/story/20150625-sri-lankas-spicy-secret)
         programme_id = self._search_regex(
-            [r'data-video-player-vpid="(%s)"' % self._ID_REGEX,
-             r'<param[^>]+name="externalIdentifier"[^>]+value="(%s)"' % self._ID_REGEX,
-             r'videoId\s*:\s*["\'](%s)["\']' % self._ID_REGEX],
+            [r'data-video-player-vpid="([\da-z]{8})"',
+             r'<param[^>]+name="externalIdentifier"[^>]+value="([\da-z]{8})"'],
             webpage, 'vpid', default=None)
 
         if programme_id:
@@ -822,7 +816,7 @@ class BBCIE(BBCCoUkIE):
 
         # Multiple video article (e.g.
         # http://www.bbc.co.uk/blogs/adamcurtis/entries/3662a707-0af9-3149-963f-47bea720b460)
-        EMBED_URL = r'https?://(?:www\.)?bbc\.co\.uk/(?:[^/]+/)+%s(?:\b[^"]+)?' % self._ID_REGEX
+        EMBED_URL = r'https?://(?:www\.)?bbc\.co\.uk/(?:[^/]+/)+[\da-z]{8}(?:\b[^"]+)?'
         entries = []
         for match in extract_all(r'new\s+SMP\(({.+?})\)'):
             embed_url = match.get('playerSettings', {}).get('externalEmbedUrl')
