@@ -9,8 +9,11 @@ import subprocess
 import sys
 from zipimport import zipimporter
 
-from .compat import compat_str
-
+from .compat import (
+    compat_str,
+    compat_urllib_request,
+)
+from .utils import make_HTTPS_handler
 from .version import __version__
 
 
@@ -44,7 +47,7 @@ def rsa_verify(message, signature, key):
     return True
 
 
-def update_self(to_screen, verbose, opener):
+def update_self(to_screen, verbose):
     """Update the program file with the latest version from the repository"""
 
     UPDATE_URL = "https://rg3.github.io/youtube-dl/update/"
@@ -55,6 +58,9 @@ def update_self(to_screen, verbose, opener):
     if not isinstance(globals().get('__loader__'), zipimporter) and not hasattr(sys, "frozen"):
         to_screen('It looks like you installed youtube-dl with a package manager, pip, setup.py or a tarball. Please use that to update.')
         return
+
+    https_handler = make_HTTPS_handler({})
+    opener = compat_urllib_request.build_opener(https_handler)
 
     # Check if there is a new version
     try:

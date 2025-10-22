@@ -5,11 +5,13 @@ import codecs
 import re
 
 from .common import InfoExtractor
-from ..compat import compat_urllib_parse
+from ..compat import (
+    compat_urllib_parse,
+    compat_urllib_request
+)
 from ..utils import (
     ExtractorError,
     int_or_none,
-    sanitized_Request,
 )
 
 
@@ -42,7 +44,7 @@ class TubiTvIE(InfoExtractor):
             'password': password,
         }
         payload = compat_urllib_parse.urlencode(form_data).encode('utf-8')
-        request = sanitized_Request(self._LOGIN_URL, payload)
+        request = compat_urllib_request.Request(self._LOGIN_URL, payload)
         request.add_header('Content-Type', 'application/x-www-form-urlencoded')
         login_page = self._download_webpage(
             request, None, False, 'Wrong login info')

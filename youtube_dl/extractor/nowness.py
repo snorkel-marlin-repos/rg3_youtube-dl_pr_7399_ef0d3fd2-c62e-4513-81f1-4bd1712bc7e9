@@ -1,12 +1,12 @@
 # encoding: utf-8
 from __future__ import unicode_literals
 
-from .brightcove import BrightcoveLegacyIE
+from .brightcove import BrightcoveIE
 from .common import InfoExtractor
-from ..compat import compat_str
-from ..utils import (
-    ExtractorError,
-    sanitized_Request,
+from ..utils import ExtractorError
+from ..compat import (
+    compat_str,
+    compat_urllib_request,
 )
 
 
@@ -22,10 +22,10 @@ class NownessBaseIE(InfoExtractor):
                             'http://www.nowness.com/iframe?id=%s' % video_id, video_id,
                             note='Downloading player JavaScript',
                             errnote='Unable to download player JavaScript')
-                        bc_url = BrightcoveLegacyIE._extract_brightcove_url(player_code)
+                        bc_url = BrightcoveIE._extract_brightcove_url(player_code)
                         if bc_url is None:
                             raise ExtractorError('Could not find player definition')
-                        return self.url_result(bc_url, 'BrightcoveLegacy')
+                        return self.url_result(bc_url, 'Brightcove')
                     elif source == 'vimeo':
                         return self.url_result('http://vimeo.com/%s' % video_id, 'Vimeo')
                     elif source == 'youtube':
@@ -37,7 +37,7 @@ class NownessBaseIE(InfoExtractor):
 
     def _api_request(self, url, request_path):
         display_id = self._match_id(url)
-        request = sanitized_Request(
+        request = compat_urllib_request.Request(
             'http://api.nowness.com/api/' + request_path % display_id,
             headers={
                 'X-Nowness-Language': 'zh-cn' if 'cn.nowness.com' in url else 'en-us',

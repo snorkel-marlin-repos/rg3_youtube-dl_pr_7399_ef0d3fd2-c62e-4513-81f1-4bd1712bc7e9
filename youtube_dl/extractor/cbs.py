@@ -1,10 +1,6 @@
 from __future__ import unicode_literals
 
 from .common import InfoExtractor
-from ..utils import (
-    sanitized_Request,
-    smuggle_url,
-)
 
 
 class CBSIE(InfoExtractor):
@@ -50,19 +46,13 @@ class CBSIE(InfoExtractor):
 
     def _real_extract(self, url):
         display_id = self._match_id(url)
-        request = sanitized_Request(url)
-        # Android UA is served with higher quality (720p) streams (see
-        # https://github.com/rg3/youtube-dl/issues/7490)
-        request.add_header('User-Agent', 'Mozilla/5.0 (Linux; Android 4.4; Nexus 5)')
-        webpage = self._download_webpage(request, display_id)
+        webpage = self._download_webpage(url, display_id)
         real_id = self._search_regex(
             [r"video\.settings\.pid\s*=\s*'([^']+)';", r"cbsplayer\.pid\s*=\s*'([^']+)';"],
             webpage, 'real video ID')
         return {
             '_type': 'url_transparent',
             'ie_key': 'ThePlatform',
-            'url': smuggle_url(
-                'http://link.theplatform.com/s/dJ5BDC/%s?mbr=true&manifest=m3u' % real_id,
-                {'force_smil_url': True}),
+            'url': 'theplatform:%s' % real_id,
             'display_id': display_id,
         }

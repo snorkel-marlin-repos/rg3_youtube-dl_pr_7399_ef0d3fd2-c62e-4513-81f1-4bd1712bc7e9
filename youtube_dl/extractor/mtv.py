@@ -5,6 +5,7 @@ import re
 from .common import InfoExtractor
 from ..compat import (
     compat_urllib_parse,
+    compat_urllib_request,
     compat_str,
 )
 from ..utils import (
@@ -12,7 +13,6 @@ from ..utils import (
     find_xpath_attr,
     fix_xml_ampersands,
     HEADRequest,
-    sanitized_Request,
     unescapeHTML,
     url_basename,
     RegexNotFoundError,
@@ -53,7 +53,7 @@ class MTVServicesInfoExtractor(InfoExtractor):
 
     def _extract_mobile_video_formats(self, mtvn_id):
         webpage_url = self._MOBILE_TEMPLATE % mtvn_id
-        req = sanitized_Request(webpage_url)
+        req = compat_urllib_request.Request(webpage_url)
         # Otherwise we get a webpage that would execute some javascript
         req.add_header('User-Agent', 'curl/7')
         webpage = self._download_webpage(req, mtvn_id,

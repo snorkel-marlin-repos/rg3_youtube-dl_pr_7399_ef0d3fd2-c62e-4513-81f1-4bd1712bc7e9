@@ -3,12 +3,13 @@ from __future__ import unicode_literals
 import json
 
 from .common import InfoExtractor
+from ..compat import compat_urllib_request
+
 from ..utils import (
     determine_ext,
     clean_html,
     int_or_none,
     float_or_none,
-    sanitized_Request,
 )
 
 
@@ -74,7 +75,7 @@ class EscapistIE(InfoExtractor):
         video_id = ims_video['videoID']
         key = ims_video['hash']
 
-        config_req = sanitized_Request(
+        config_req = compat_urllib_request.Request(
             'http://www.escapistmagazine.com/videos/'
             'vidconfig.php?videoID=%s&hash=%s' % (video_id, key))
         config_req.add_header('Referer', url)

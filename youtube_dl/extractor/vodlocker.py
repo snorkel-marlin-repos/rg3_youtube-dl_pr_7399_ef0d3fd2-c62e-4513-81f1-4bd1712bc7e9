@@ -2,15 +2,14 @@
 from __future__ import unicode_literals
 
 from .common import InfoExtractor
-from ..compat import compat_urllib_parse
-from ..utils import (
-    ExtractorError,
-    sanitized_Request,
+from ..compat import (
+    compat_urllib_parse,
+    compat_urllib_request,
 )
 
 
 class VodlockerIE(InfoExtractor):
-    _VALID_URL = r'https?://(?:www\.)?vodlocker\.com/(?:embed-)?(?P<id>[0-9a-zA-Z]+)(?:\..*?)?'
+    _VALID_URL = r'https?://(?:www\.)?vodlocker\.com/(?P<id>[0-9a-zA-Z]+)(?:\..*?)?'
 
     _TESTS = [{
         'url': 'http://vodlocker.com/e8wvyzz4sl42',
@@ -27,18 +26,12 @@ class VodlockerIE(InfoExtractor):
         video_id = self._match_id(url)
         webpage = self._download_webpage(url, video_id)
 
-        if any(p in webpage for p in (
-                '>THIS FILE WAS DELETED<',
-                '>File Not Found<',
-                'The file you were looking for could not be found, sorry for any inconvenience.<')):
-            raise ExtractorError('Video %s does not exist' % video_id, expected=True)
-
         fields = self._hidden_inputs(webpage)
 
         if fields['op'] == 'download1':
             self._sleep(3, video_id)  # they do detect when requests happen too fast!
             post = compat_urllib_parse.urlencode(fields)
-            req = sanitized_Request(url, post)
+            req = compat_urllib_request.Request(url, post)
             req.add_header('Content-type', 'application/x-www-form-urlencoded')
             webpage = self._download_webpage(
                 req, video_id, 'Downloading video page')

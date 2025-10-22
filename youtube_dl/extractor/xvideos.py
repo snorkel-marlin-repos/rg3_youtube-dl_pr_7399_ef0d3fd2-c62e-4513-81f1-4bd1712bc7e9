@@ -3,12 +3,14 @@ from __future__ import unicode_literals
 import re
 
 from .common import InfoExtractor
-from ..compat import compat_urllib_parse_unquote
+from ..compat import (
+    compat_urllib_parse_unquote,
+    compat_urllib_request,
+)
 from ..utils import (
     clean_html,
     ExtractorError,
     determine_ext,
-    sanitized_Request,
 )
 
 
@@ -46,7 +48,7 @@ class XVideosIE(InfoExtractor):
             'url': video_url,
         }]
 
-        android_req = sanitized_Request(url)
+        android_req = compat_urllib_request.Request(url)
         android_req.add_header('User-Agent', self._ANDROID_USER_AGENT)
         android_webpage = self._download_webpage(android_req, video_id, fatal=False)
 

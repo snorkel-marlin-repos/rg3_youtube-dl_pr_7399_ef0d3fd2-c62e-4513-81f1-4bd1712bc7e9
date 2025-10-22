@@ -8,6 +8,7 @@ import itertools
 from .common import InfoExtractor
 from ..compat import (
     compat_HTTPError,
+    compat_urllib_request,
     compat_urlparse,
 )
 from ..utils import (
@@ -16,7 +17,6 @@ from ..utils import (
     InAdvancePagedList,
     int_or_none,
     RegexNotFoundError,
-    sanitized_Request,
     smuggle_url,
     std_headers,
     unified_strdate,
@@ -47,10 +47,10 @@ class VimeoBaseInfoExtractor(InfoExtractor):
             'service': 'vimeo',
             'token': token,
         }))
-        login_request = sanitized_Request(self._LOGIN_URL, data)
+        login_request = compat_urllib_request.Request(self._LOGIN_URL, data)
         login_request.add_header('Content-Type', 'application/x-www-form-urlencoded')
+        login_request.add_header('Cookie', 'vuid=%s' % vuid)
         login_request.add_header('Referer', self._LOGIN_URL)
-        self._set_vimeo_cookie('vuid', vuid)
         self._download_webpage(login_request, None, False, 'Wrong login info')
 
     def _extract_xsrft_and_vuid(self, webpage):
@@ -61,9 +61,6 @@ class VimeoBaseInfoExtractor(InfoExtractor):
             r'["\']vuid["\']\s*:\s*(["\'])(?P<vuid>.+?)\1',
             webpage, 'vuid', group='vuid')
         return xsrft, vuid
-
-    def _set_vimeo_cookie(self, name, value):
-        self._set_cookie('vimeo.com', name, value)
 
 
 class VimeoIE(VimeoBaseInfoExtractor):
@@ -189,10 +186,6 @@ class VimeoIE(VimeoBaseInfoExtractor):
             'note': 'Video not completely processed, "failed" seed status',
             'only_matching': True,
         },
-        {
-            'url': 'https://vimeo.com/groups/travelhd/videos/22439234',
-            'only_matching': True,
-        },
     ]
 
     @staticmethod
@@ -222,10 +215,10 @@ class VimeoIE(VimeoBaseInfoExtractor):
         if url.startswith('http://'):
             # vimeo only supports https now, but the user can give an http url
             url = url.replace('http://', 'https://')
-        password_request = sanitized_Request(url + '/password', data)
+        password_request = compat_urllib_request.Request(url + '/password', data)
         password_request.add_header('Content-Type', 'application/x-www-form-urlencoded')
+        password_request.add_header('Cookie', 'clip_test2=1; vuid=%s' % vuid)
         password_request.add_header('Referer', url)
-        self._set_vimeo_cookie('vuid', vuid)
         return self._download_webpage(
             password_request, video_id,
             'Verifying the password', 'Wrong password')
@@ -236,7 +229,7 @@ class VimeoIE(VimeoBaseInfoExtractor):
             raise ExtractorError('This video is protected by a password, use the --video-password option')
         data = urlencode_postdata(encode_dict({'password': password}))
         pass_url = url + '/check-password'
-        password_request = sanitized_Request(pass_url, data)
+        password_request = compat_urllib_request.Request(pass_url, data)
         password_request.add_header('Content-Type', 'application/x-www-form-urlencoded')
         return self._download_json(
             password_request, video_id,
@@ -265,7 +258,7 @@ class VimeoIE(VimeoBaseInfoExtractor):
             url = 'https://vimeo.com/' + video_id
 
         # Retrieve video webpage to extract further information
-        request = sanitized_Request(url, None, headers)
+        request = compat_urllib_request.Request(url, None, headers)
         try:
             webpage = self._download_webpage(request, video_id)
         except ExtractorError as ee:
@@ -391,29 +384,47 @@ class VimeoIE(VimeoBaseInfoExtractor):
             like_count = None
             comment_count = None
 
+        # Vimeo specific: extract request signature and timestamp
+        sig = config['request']['signature']
+        timestamp = config['request']['timestamp']
+
+        # Vimeo specific: extract video codec and quality information
+        # First consider quality, then codecs, then take everything
+        codecs = [('vp6', 'flv'), ('vp8', 'flv'), ('h264', 'mp4')]
+        files = {'hd': [], 'sd': [], 'other': []}
+        config_files = config["video"].get("files") or config["request"].get("files")
+        for codec_name, codec_extension in codecs:
+            for quality in config_files.get(codec_name, []):
+                format_id = '-'.join((codec_name, quality)).lower()
+                key = quality if quality in files else 'other'
+                video_url = None
+                if isinstance(config_files[codec_name], dict):
+                    file_info = config_files[codec_name][quality]
+                    video_url = file_info.get('url')
+                else:
+                    file_info = {}
+                if video_url is None:
+                    video_url = "http://player.vimeo.com/play_redirect?clip_id=%s&sig=%s&time=%s&quality=%s&codecs=%s&type=moogaloop_local&embed_location=" \
+                        % (video_id, sig, timestamp, quality, codec_name.upper())
+
+                files[key].append({
+                    'ext': codec_extension,
+                    'url': video_url,
+                    'format_id': format_id,
+                    'width': int_or_none(file_info.get('width')),
+                    'height': int_or_none(file_info.get('height')),
+                    'tbr': int_or_none(file_info.get('bitrate')),
+                })
         formats = []
-        config_files = config['video'].get('files') or config['request'].get('files', {})
-        for f in config_files.get('progressive', []):
-            video_url = f.get('url')
-            if not video_url:
-                continue
-            formats.append({
-                'url': video_url,
-                'format_id': 'http-%s' % f.get('quality'),
-                'width': int_or_none(f.get('width')),
-                'height': int_or_none(f.get('height')),
-                'fps': int_or_none(f.get('fps')),
-                'tbr': int_or_none(f.get('bitrate')),
-            })
-        m3u8_url = config_files.get('hls', {}).get('url')
+        m3u8_url = config_files.get('hls', {}).get('all')
         if m3u8_url:
             m3u8_formats = self._extract_m3u8_formats(
                 m3u8_url, video_id, 'mp4', 'm3u8_native', 0, 'hls', fatal=False)
             if m3u8_formats:
                 formats.extend(m3u8_formats)
-        # Bitrates are completely broken. Single m3u8 may contain entries in kbps and bps
-        # at the same time without actual units specified. This lead to wrong sorting.
-        self._sort_formats(formats, field_preference=('height', 'width', 'fps', 'format_id'))
+        for key in ('other', 'sd', 'hd'):
+            formats += files[key]
+        self._sort_formats(formats)
 
         subtitles = {}
         text_tracks = config['request'].get('text_tracks')
@@ -481,16 +492,17 @@ class VimeoChannelIE(VimeoBaseInfoExtractor):
         password_path = self._search_regex(
             r'action="([^"]+)"', login_form, 'password URL')
         password_url = compat_urlparse.urljoin(page_url, password_path)
-        password_request = sanitized_Request(password_url, post)
+        password_request = compat_urllib_request.Request(password_url, post)
         password_request.add_header('Content-type', 'application/x-www-form-urlencoded')
-        self._set_vimeo_cookie('vuid', vuid)
-        self._set_vimeo_cookie('xsrft', token)
+        password_request.add_header('Cookie', 'vuid=%s' % vuid)
+        self._set_cookie('vimeo.com', 'xsrft', token)
 
         return self._download_webpage(
             password_request, list_id,
             'Verifying the password', 'Wrong password')
 
-    def _title_and_entries(self, list_id, base_url):
+    def _extract_videos(self, list_id, base_url):
+        video_ids = []
         for pagenum in itertools.count(1):
             page_url = self._page_url(base_url, pagenum)
             webpage = self._download_webpage(
@@ -499,18 +511,18 @@ class VimeoChannelIE(VimeoBaseInfoExtractor):
 
             if pagenum == 1:
                 webpage = self._login_list_password(page_url, list_id, webpage)
-                yield self._extract_list_title(webpage)
 
-            for video_id in re.findall(r'id="clip_(\d+?)"', webpage):
-                yield self.url_result('https://vimeo.com/%s' % video_id, 'Vimeo')
-
+            video_ids.extend(re.findall(r'id="clip_(\d+?)"', webpage))
             if re.search(self._MORE_PAGES_INDICATOR, webpage, re.DOTALL) is None:
                 break
 
-    def _extract_videos(self, list_id, base_url):
-        title_and_entries = self._title_and_entries(list_id, base_url)
-        list_title = next(title_and_entries)
-        return self.playlist_result(title_and_entries, list_id, list_title)
+        entries = [self.url_result('https://vimeo.com/%s' % video_id, 'Vimeo')
+                   for video_id in video_ids]
+        return {'_type': 'playlist',
+                'id': list_id,
+                'title': self._extract_list_title(webpage),
+                'entries': entries,
+                }
 
     def _real_extract(self, url):
         mobj = re.match(self._VALID_URL, url)
@@ -571,7 +583,7 @@ class VimeoAlbumIE(VimeoChannelIE):
 
 class VimeoGroupsIE(VimeoAlbumIE):
     IE_NAME = 'vimeo:group'
-    _VALID_URL = r'https://vimeo\.com/groups/(?P<name>[^/]+)(?:/(?!videos?/\d+)|$)'
+    _VALID_URL = r'https://vimeo\.com/groups/(?P<name>[^/]+)'
     _TESTS = [{
         'url': 'https://vimeo.com/groups/rolexawards',
         'info_dict': {
@@ -640,7 +652,7 @@ class VimeoWatchLaterIE(VimeoChannelIE):
 
     def _page_url(self, base_url, pagenum):
         url = '%s/page:%d/' % (base_url, pagenum)
-        request = sanitized_Request(url)
+        request = compat_urllib_request.Request(url)
         # Set the header to get a partial html page with the ids,
         # the normal page doesn't contain them.
         request.add_header('X-Requested-With', 'XMLHttpRequest')
